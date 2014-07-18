@@ -38,6 +38,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "structured_light.hpp"
 
+// NAC
+#include <QFileDialog>
+
 ProjectorWidget::ProjectorWidget(QWidget * parent, Qt::WindowFlags flags) : 
     QWidget(parent, flags),
     _screen(0),
@@ -217,32 +220,77 @@ void ProjectorWidget::make_pattern(void)
     // YY =  (4*_pattern_count + 2) - 2 horizontal, bit N, normal
     // YY =  (4*_pattern_count + 2) - 1 horizontal, bit N, inverted
 
-    if (_current_pattern<2)
-    {   //white or black
-        _pixmap = make_pattern(rows, cols, vmask, voffset, hmask, hoffset, inverted);
-    }
-    else if (_current_pattern<2*_pattern_count+2)
-    {   //vertical
-        int bit = _vbits - _current_pattern/2;
-        vmask = 1<<bit;
-        //std::cerr << "v# cp: " << _current_pattern << " bit:" << bit << " mask:" << vmask << std::endl;
-        _pixmap = make_pattern(rows, cols, vmask, voffset, hmask, hoffset, !inverted);
-    }
-    else if (_current_pattern<4*_pattern_count+2)
-    {   //horizontal
-        int bit = _hbits + _pattern_count - _current_pattern/2;
-        hmask = 1<<bit;
-        //std::cerr << "h# cp: " << _current_pattern << " bit:" << bit << " mask:" << hmask << std::endl;
-        _pixmap = make_pattern(rows, cols, vmask, voffset, hmask, hoffset, !inverted);
-    }
-    else
-    {   //error
-        assert(false);
-        stop();
-        return;
+    if(USE_HL_PATTERNS) { // NAC: load from disk rather than generate
+      if (_current_pattern<2)
+	{   //white or black
+	  _pixmap = make_pattern(rows, cols, vmask, voffset, hmask, hoffset, inverted);
+	} else {
+	cv::Mat pattern_image = load_pattern_image_file();
+	_pixmap = mat2QPixmap(pattern_image);
+      }
+    } else {
+
+      if (_current_pattern<2)
+	{   //white or black
+	  _pixmap = make_pattern(rows, cols, vmask, voffset, hmask, hoffset, inverted);
+	}
+      else if (_current_pattern<2*_pattern_count+2)
+	{   //vertical
+	  int bit = _vbits - _current_pattern/2;
+	  vmask = 1<<bit;
+	  //std::cerr << "v# cp: " << _current_pattern << " bit:" << bit << " mask:" << vmask << std::endl;
+	  _pixmap = make_pattern(rows, cols, vmask, voffset, hmask, hoffset, !inverted);
+	}
+      else if (_current_pattern<4*_pattern_count+2)
+	{   //horizontal
+	  int bit = _hbits + _pattern_count - _current_pattern/2;
+	  hmask = 1<<bit;
+	  //std::cerr << "h# cp: " << _current_pattern << " bit:" << bit << " mask:" << hmask << std::endl;
+	  _pixmap = make_pattern(rows, cols, vmask, voffset, hmask, hoffset, !inverted);
+	}
+      else
+	{   //error
+	  assert(false);
+	  stop();
+	  return;
+	}
+      
     }
 
     //_pixmap.save(QString("pat_%1.png").arg(_current_pattern, 2, 10, QLatin1Char('0')));
+}
+
+// NAC
+QPixmap ProjectorWidget::mat2QPixmap(cv::Mat const& src)
+{
+     cv::Mat temp; // make the same cv::Mat
+     cvtColor(src, temp,CV_BGR2RGB); // cvtColor Makes a copt, that what i need
+     QImage dest((const uchar *) temp.data, temp.cols, temp.rows, temp.step, QImage::Format_RGB888);
+     dest.bits(); // enforce deep copy, see docs of QImage::QImage ( const uchar * data, int width, int height, Format format )
+     return QPixmap::fromImage(dest);
+}
+
+void ProjectorWidget::choose_pattern_directory(QWidget * parent_widget) {
+ pattern_dir_ = QFileDialog::getExistingDirectory(parent_widget, "Select Pattern Directory");//,
+  //config.value("main/root_dir", QString());
+}
+
+// NAC
+const cv::Mat ProjectorWidget::load_pattern_image_file() const
+{
+
+  QString filename = pattern_dir_ + "/" + "pattern0.png";
+  //std::string filename = "../patterns/pattern0.png";
+    
+  std::cout << "Loading pattern; filename: " << filename.toStdString() << std::endl;
+  cv::Mat rgb_image = cv::imread(filename.toStdString());
+    if (rgb_image.rows>0 && rgb_image.cols>0)
+    {
+      //cv::Mat gray_image;
+      //cvtColor(rgb_image, gray_image, CV_BGR2GRAY);
+      //return gray_image;
+      return rgb_image;
+    } else return cv::Mat();
 }
 
 QPixmap ProjectorWidget::make_pattern(int rows, int cols, int vmask, int voffset, int hmask, int hoffset, int inverted)

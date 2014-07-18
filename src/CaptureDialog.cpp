@@ -72,6 +72,10 @@ CaptureDialog::CaptureDialog(QWidget * parent, Qt::WindowFlags flags):
 
     //start video preview
     start_camera();
+
+    // NAC
+    _projector.choose_pattern_directory(parent);
+
 }
 
 CaptureDialog::~CaptureDialog()
@@ -333,6 +337,10 @@ void CaptureDialog::on_capture_button_clicked(bool checked)
 
     while (!_projector.finished())
     {
+
+	// NAC
+	await_udp_sync_msg();
+
         _projector.next();
         //QMessageBox::critical(this, "Next", "Continue");
 
@@ -353,6 +361,7 @@ void CaptureDialog::on_capture_button_clicked(bool checked)
         {   
             QApplication::processEvents();
         }
+
     }
 
     //close projector
@@ -373,6 +382,89 @@ void CaptureDialog::on_capture_button_clicked(bool checked)
     close_cancel_button->setEnabled(true);
 
     //TODO: override window close button or allow to close/cancel while capturing
+}
+
+// NAC
+void CaptureDialog::send_udp_sync_msg() const {
+  // hostname
+  // port
+}
+
+// NAC
+// see http://www.microhowto.info/howto/listen_for_and_receive_udp_datagrams_in_c.html
+#include <errno.h>
+#include <string.h>
+#include <unistd.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+void CaptureDialog::await_udp_sync_msg() const {
+
+// from http://stackoverflow.com/questions/12515005/receiving-udp-broadcast
+
+sockaddr_in si_me, si_other;
+int s;
+assert((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP))!=-1);
+int broadcast=1;
+
+setsockopt(s, SOL_SOCKET, SO_BROADCAST,
+            &broadcast, sizeof broadcast);
+
+memset(&si_me, 0, sizeof(si_me));
+si_me.sin_family = AF_INET;
+si_me.sin_port = htons(port_);
+si_me.sin_addr.s_addr = INADDR_ANY;
+
+assert(::bind(s, (sockaddr *)&si_me, sizeof(sockaddr))!=-1);
+
+//while(1)
+//{
+    char buf[10000];
+    unsigned slen=sizeof(sockaddr);
+    recvfrom(s, buf, sizeof(buf)-1, 0, (sockaddr *)&si_other, &slen);
+
+    printf("recv: %s\n", buf);
+    //}
+
+/*
+const char* hostname=0; // wildcard
+const char* portname="daytime";
+struct addrinfo hints;
+memset(&hints,0,sizeof(hints));
+hints.ai_family=AF_UNSPEC;
+hints.ai_socktype=SOCK_DGRAM;
+hints.ai_protocol=0;
+hints.ai_flags=AI_PASSIVE|AI_ADDRCONFIG;
+struct addrinfo* res=0;
+int err=getaddrinfo(hostname,portname,&hints,&res);
+if (err!=0) {
+    die("failed to resolve local socket address (err=%d)",err);
+}
+
+int fd=socket(res->ai_family,res->ai_socktype,res->ai_protocol);
+if (fd==-1) {
+    die("%s",strerror(errno));
+}
+
+if (bind(fd,res->ai_addr,res->ai_addrlen)==-1) {
+    die("%s",strerror(errno));
+}
+
+freeaddrinfo(res);
+
+char buffer[549];
+struct sockaddr_storage src_addr;
+socklen_t src_addr_len=sizeof(src_addr);
+ssize_t count=recvfrom(fd,buffer,sizeof(buffer),0,(struct sockaddr*)&src_addr,&src_addr_len);
+if (count==-1) {
+    die("%s",strerror(errno));
+} else if (count==sizeof(buffer)) {
+    warn("datagram too large for buffer: truncated");
+} else {
+//handle_datagram(buffer,count);
+    warn("got datagram; but haven't written code to process it yet!");
+}
+*/
 }
 
 void CaptureDialog::on_test_check_stateChanged(int state)

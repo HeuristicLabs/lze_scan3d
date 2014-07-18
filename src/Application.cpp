@@ -1066,6 +1066,7 @@ void Application::make_pattern_images(int level, cv::Mat & col_image, cv::Mat & 
         return;
     }
 
+
     //apply threshold
     int threshold = config.value(THRESHOLD_CONFIG, THRESHOLD_DEFAULT).toInt();
     cv::Mat pattern_image_new = cv::Mat(pattern_image.size(), pattern_image.type());

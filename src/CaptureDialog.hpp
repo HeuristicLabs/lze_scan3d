@@ -62,6 +62,11 @@ public:
 
     static void wait(int msecs);
 
+  // NAC
+  void await_udp_sync_msg() const;
+  void send_udp_sync_msg() const;
+  const static int port_ = 6000;
+
 public slots:
     void on_close_cancel_button_clicked(bool checked = false);
     void _on_root_dir_changed(const QString & dirname);

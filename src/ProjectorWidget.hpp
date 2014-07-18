@@ -30,6 +30,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <QWidget>
 
+// NAC
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+
 class ProjectorWidget : public QWidget
 {
     Q_OBJECT
@@ -58,6 +63,13 @@ public:
     inline void clear_updated(void) {_updated = false;}
 
     bool save_info(QString const& filename) const;
+
+  // NAC
+  const static bool USE_HL_PATTERNS = true;
+  QString pattern_dir_;
+  void choose_pattern_directory(QWidget * parent);
+  const cv::Mat load_pattern_image_file() const;
+  QPixmap mat2QPixmap(cv::Mat const& src);
 
 signals:
     void new_image(QPixmap image);
