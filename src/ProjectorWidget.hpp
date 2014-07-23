@@ -65,7 +65,7 @@ public:
     bool save_info(QString const& filename) const;
 
   // NAC
-  const static bool USE_HL_PATTERNS = true;
+  const static bool USE_HL_PATTERNS = false; //true;
   QString pattern_dir_;
   void choose_pattern_directory(QWidget * parent);
   const cv::Mat load_pattern_image_file() const;

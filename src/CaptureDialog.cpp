@@ -339,7 +339,7 @@ void CaptureDialog::on_capture_button_clicked(bool checked)
     {
 
 	// NAC
-	await_udp_sync_msg();
+	//await_udp_sync_msg();
 
         _projector.next();
         //QMessageBox::critical(this, "Next", "Continue");

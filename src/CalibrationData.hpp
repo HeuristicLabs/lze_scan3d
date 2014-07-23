@@ -62,6 +62,18 @@ public:
     cv::Mat R;
     cv::Mat T;
 
+    // NAC
+    cv::Rect roi1, roi2;
+    cv::Mat Q;  
+    cv::Mat R1, P1, R2, P2;
+    cv::Mat map11, map12, map21, map22;
+
+    void init_rectification_maps(cv::Size img_size);
+    void rectify_pair(cv::Mat& img1, cv::Mat& img2);
+    void stereo_block_matching(cv::Mat img1, cv::Mat img2);
+    void disparityImg2Cloud(cv::Mat disp, const char* point_cloud_filename = NULL);
+    void saveXYZ(const char* filename, const cv::Mat& mat);
+
     double cam_error;
     double proj_error;
     double stereo_error;

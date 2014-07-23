@@ -108,6 +108,141 @@ bool CalibrationData::load_calibration_yml(QString const& filename)
     return true;
 }
 
+#include "opencv2/calib3d/calib3d.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+//#include "opencv2/imgcodecs.hpp"
+#include "opencv2/highgui/highgui.hpp"
+//#include "opencv2/core/utility.hpp"
+#include "opencv2/core/core.hpp"
+
+using namespace cv;
+
+// NAC
+// mostly from: https://github.com/Itseez/opencv/blob/master/samples/cpp/stereo_match.cpp
+// FIXME: most of these only have to be computed once, due to rigidly mounted cam/projector
+// FIXME: output parameters
+void CalibrationData::init_rectification_maps(Size img_size) {
+
+  //Size img_size = img.size();
+
+  stereoRectify( cam_K, cam_kc, proj_K, proj_kc, img_size, R, T, R1, R2, P1, P2, Q, CALIB_ZERO_DISPARITY, -1, img_size, &roi1, &roi2 );
+
+  initUndistortRectifyMap(cam_K, cam_kc, R1, P1, img_size, CV_16SC2, map11, map12);
+  initUndistortRectifyMap(proj_K, proj_kc, R2, P2, img_size, CV_16SC2, map21, map22);
+}
+
+// NAC
+void CalibrationData::rectify_pair(Mat& img1, Mat& img2) {
+  
+        Mat img1r, img2r;
+        remap(img1, img1r, map11, map12, INTER_LINEAR);
+        remap(img2, img2r, map21, map22, INTER_LINEAR);
+
+        img1 = img1r;
+        img2 = img2r;
+}
+
+// NAC
+void CalibrationData::stereo_block_matching(Mat img1, Mat img2) {
+
+    enum { STEREO_BM=0, STEREO_SGBM=1, STEREO_HH=2, STEREO_VAR=3 };
+    int alg = STEREO_SGBM;
+    int SADWindowSize = 0, numberOfDisparities = 0;
+    //float scale = 1.f;
+
+/*
+    Ptr<StereoBM> bm = createStereoBM(16,9);
+    Ptr<StereoSGBM> sgbm = createStereoSGBM(0,16,3);
+
+    Size img_size = img1.size();
+
+    numberOfDisparities = numberOfDisparities > 0 ? numberOfDisparities : ((img_size.width/8) + 15) & -16;
+
+    bm->setROI1(roi1);
+    bm->setROI2(roi2);
+    bm->setPreFilterCap(31);
+    bm->setBlockSize(SADWindowSize > 0 ? SADWindowSize : 9);
+    bm->setMinDisparity(0);
+    bm->setNumDisparities(numberOfDisparities);
+    bm->setTextureThreshold(10);
+    bm->setUniquenessRatio(15);
+    bm->setSpeckleWindowSize(100);
+    bm->setSpeckleRange(32);
+    bm->setDisp12MaxDiff(1);
+
+    sgbm->setPreFilterCap(63);
+    int sgbmWinSize = SADWindowSize > 0 ? SADWindowSize : 3;
+    sgbm->setBlockSize(sgbmWinSize);
+
+    int cn = img1.channels();
+
+    sgbm->setP1(8*cn*sgbmWinSize*sgbmWinSize);
+    sgbm->setP2(32*cn*sgbmWinSize*sgbmWinSize);
+    sgbm->setMinDisparity(0);
+    sgbm->setNumDisparities(numberOfDisparities);
+    sgbm->setUniquenessRatio(10);
+    sgbm->setSpeckleWindowSize(100);
+    sgbm->setSpeckleRange(32);
+    sgbm->setDisp12MaxDiff(1);
+    sgbm->setMode(alg == STEREO_HH ? StereoSGBM::MODE_HH : StereoSGBM::MODE_SGBM);
+
+*/
+
+/*
+
+    int64 t = getTickCount();
+    if( alg == STEREO_BM )
+        bm->compute(img1, img2, disp);
+    else if( alg == STEREO_SGBM || alg == STEREO_HH )
+        sgbm->compute(img1, img2, disp);
+    t = getTickCount() - t;
+    printf("Time elapsed: %fms\n", t*1000/getTickFrequency());
+
+    //disp = dispp.colRange(numberOfDisparities, img1p.cols);
+    if( alg != STEREO_VAR )
+        disp.convertTo(disp8, CV_8U, 255/(numberOfDisparities*16.));
+    else
+        disp.convertTo(disp8, CV_8U);
+
+    if(disparity_filename)
+        imwrite(disparity_filename, disp8);
+
+*/
+
+}
+
+// NAC
+void CalibrationData::disparityImg2Cloud(Mat disp, const char* point_cloud_filename) {
+    if(point_cloud_filename)
+    {
+        printf("storing the point cloud...");
+        fflush(stdout);
+        Mat xyz;
+        reprojectImageTo3D(disp, xyz, Q, true);
+        saveXYZ(point_cloud_filename, xyz);
+        printf("\n");
+    }
+}
+
+// NAC
+// helper
+void CalibrationData::saveXYZ(const char* filename, const Mat& mat)
+{
+    const double max_z = 1.0e4;
+    FILE* fp = fopen(filename, "wt");
+    for(int y = 0; y < mat.rows; y++)
+    {
+        for(int x = 0; x < mat.cols; x++)
+        {
+            Vec3f point = mat.at<Vec3f>(y, x);
+            if(fabs(point[2] - max_z) < FLT_EPSILON || fabs(point[2]) > max_z) continue;
+            fprintf(fp, "%f %f %f\n", point[0], point[1], point[2]);
+        }
+    }
+    fclose(fp);
+}
+
+
 bool CalibrationData::save_calibration_yml(QString const& filename)
 {
     cv::FileStorage fs(filename.toStdString(), cv::FileStorage::WRITE);
