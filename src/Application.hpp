@@ -111,7 +111,7 @@ public:
     void decode(int level, QWidget * parent_widget = NULL);
     void calibrate(void);
 
-    bool decode_gray_set(unsigned level, cv::Mat & pattern_image, cv::Mat & min_max_image, QWidget * parent_widget = NULL) const;
+    bool decode_gray_set(unsigned level, cv::Mat & pattern_image, cv::Mat & min_max_image, QWidget * parent_widget = NULL);
 
     void load_config(void);
 
@@ -137,6 +137,9 @@ public:
     //model
     void select_none(void);
     void select_all(void);
+
+    // NAC
+    cv::Mat pattern2gray(cv::Mat pattern_img, int channel);
 
 public slots:
     void deinit(void);

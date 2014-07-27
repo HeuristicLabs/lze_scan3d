@@ -73,6 +73,7 @@ public:
     void stereo_block_matching(cv::Mat img1, cv::Mat img2);
     void disparityImg2Cloud(cv::Mat disp, const char* point_cloud_filename = NULL);
     void saveXYZ(const char* filename, const cv::Mat& mat);
+    void write_rectified_pair(cv::Mat img1r, cv::Mat img2r, std::string base_filename);
 
     double cam_error;
     double proj_error;

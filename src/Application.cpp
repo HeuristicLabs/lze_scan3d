@@ -508,7 +508,31 @@ void Application::decode_all(void)
             return;
         }
 
-        //save pattern image as PGM for debugging
+
+    // NAC
+    //cv::Mat img1 = sl::colorize_pattern(pattern_image, 0, get_projector_width(level));
+    //cv::Mat img1 = pattern_image.clone();
+    //cv::Mat img2 = min_max_image.clone();
+    cv::Mat img1 = pattern2gray(pattern_image, 1);
+    cv::Mat img2 = pattern2gray(min_max_image, 1);
+    cv::Size imageSize = img1.size();
+    calib.init_rectification_maps(imageSize);
+    calib.rectify_pair(img1, img2);
+    std::ostringstream oss1;
+    oss1 << "/tmp/" << "rectified_gray_idx" << i;
+    calib.write_rectified_pair(img1, img2, oss1.str());
+
+    // NAC
+/*
+    img2 = color_image.clone();
+    calib.init_rectification_maps(imageSize);
+    calib.rectify_pair(img1, img2);
+    std::ostringstream oss2;
+    oss2 << "/tmp/" << "rectified_rgb_lvl" << level;
+    calib.write_rectified_pair(img1, img2, oss2.str());
+*/
+
+        // save pattern image as PGM for debugging
         //QString filename = path + "/" + set_name;
         //io_util::write_pgm(pattern_image, qPrintable(filename));
 
@@ -518,6 +542,21 @@ void Application::decode_all(void)
 
     processing_set_current_message("Decode finished");
     processing_set_progress_value(count);
+}
+
+// NAC
+cv::Mat Application::pattern2gray(cv::Mat pattern_img, int channel) {
+  if(channel > pattern_img.channels()) {
+    std::cout << "Wrong number of channels when converting pattern image to gray" << std::endl;
+    return cv::Mat();
+  }
+  cv::Mat imgGray;
+  std::vector<cv::Mat> pattern_img_split;
+  cv::split(pattern_img, pattern_img_split);
+  double minVal, maxVal;
+  cv::minMaxLoc(pattern_img_split[0], &minVal, &maxVal); //find minimum and maximum intensities
+  pattern_img_split[0].convertTo(imgGray, CV_8U, 255.0/(maxVal - minVal), -minVal * 255.0/(maxVal - minVal));
+  return imgGray;
 }
 
 void Application::decode(int level, QWidget * parent_widget)
@@ -751,6 +790,20 @@ void Application::calibrate(void)
     processing_message("\n **** Calibration results ****\n");
     processing_message(QString::fromStdString(stream.str()));
 
+    // NAC
+    for (unsigned i=0; i<count; i++) {
+      cv::Mat& img1 = pattern_list[i]; // pattern_image
+      cv::Mat& img2 = min_max_list[i]; // min_max_image
+      if(i == 0) {
+	cv::Size imageSize = img1.size();
+	calib.init_rectification_maps(imageSize);
+      }
+      calib.rectify_pair(img1, img2);
+      std::ostringstream oss;
+      oss << "/tmp/" << "rectified_" << i << "_";
+      calib.write_rectified_pair(img1, img2, oss.str());
+    }
+
     //save to file
     QString path = config.value("main/root_dir").toString();
     QString filename = path + "/calibration.yml";
@@ -830,7 +883,7 @@ void Application::calibrate(void)
     processing_message("Calibration finished");
 }
 
-bool Application::decode_gray_set(unsigned level, cv::Mat & pattern_image, cv::Mat & min_max_image, QWidget * parent_widget) const
+bool Application::decode_gray_set(unsigned level, cv::Mat & pattern_image, cv::Mat & min_max_image, QWidget * parent_widget)
 {
     if (model.rowCount()<static_cast<int>(level))
     {   //out of bounds
@@ -920,6 +973,25 @@ bool Application::decode_gray_set(unsigned level, cv::Mat & pattern_image, cv::M
         std::string filename = model.data(index, ImageFilenameRole).toString().toStdString();
         std::cout << "[decode_set " << level << "] Filename: " << filename << std::endl;
 
+	// NAC
+	cv::Mat image;
+	image = cv::imread(filename, CV_LOAD_IMAGE_COLOR);   // Read the file
+
+    if(! image.data )                              // Check for invalid input
+    {
+      std::cout <<  "Could not open or find the image" << std::endl ;
+    } else { std::cout << "moo" << std::endl;}
+
+    // NAC
+    cv::Mat img1 = pattern2gray(image, 0);
+    cv::Mat img2 = pattern2gray(image, 1);
+    cv::Size imageSize = img1.size();
+    calib.init_rectification_maps(imageSize);
+    calib.rectify_pair(img1, img2);
+    std::ostringstream oss1;
+    oss1 << "/tmp/rectified_gray_idx" << i << "lvl" << level;
+    calib.write_rectified_pair(img1, img2, oss1.str());
+
         image_names.push_back(filename);
     }
 
@@ -963,7 +1035,7 @@ bool Application::load_calibration(QWidget * parent_widget)
     if (!filename.isEmpty() && calib.load_calibration(filename))
     {   //ok
         config.setValue("main/calibration_file", filename);
-        mainWin.show_message(QString("Calibration loaded from %1").arg(filename));
+        mainWin.show_message(QString("Calibration loaded from %1").arg(filename));	
         calib.display();
         return true;
     }

@@ -54,6 +54,20 @@ void CalibrationData::clear(void)
     R = cv::Mat();
     T = cv::Mat();
     filename = QString();
+
+    // NAC
+    roi1 = cv::Rect();
+    roi2 = cv::Rect();
+    Q = cv::Mat();
+    R1 = cv::Mat();
+    R2 = cv::Mat();
+    P1 = cv::Mat();
+    P2 = cv::Mat();
+    map11 = cv::Mat();
+    map12 = cv::Mat();
+    map21 = cv::Mat();
+    map22 = cv::Mat();
+
 }
 
 bool CalibrationData::is_valid(void) const
@@ -140,6 +154,29 @@ void CalibrationData::rectify_pair(Mat& img1, Mat& img2) {
 
         img1 = img1r;
         img2 = img2r;
+
+}
+
+// NAC: appends "_left.png" and "_right.png" to base_filename
+void CalibrationData::write_rectified_pair(Mat img1r, Mat img2r, std::string base_filename) {
+
+  std::ostringstream oss_left;
+  oss_left << base_filename << "_left.png";
+  try {
+    imwrite(oss_left.str(), img1r);
+  } catch(cv::Exception e) {
+    std::cout << "Writing " << oss_left.str() << " : caught exception " << e.what() << std::endl;
+    std::cout << "elem_size: " << img1r.elemSize() << "elem_size1: " << img1r.elemSize1() << "channels: " << img1r.channels() << std::endl;
+  }
+
+  std::ostringstream oss_right;
+  oss_right << base_filename << "_right.png";
+  try {
+    imwrite(oss_right.str(), img2r);
+  } catch(cv::Exception e) {
+    std::cout << "Writing " << oss_right.str() << " : caught exception " << e.what() << std::endl;
+    std::cout << "elem_size: " << img2r.elemSize() << ", elem_size1: " << img2r.elemSize1() << ", channels: " << img2r.channels() << std::endl;
+  }
 }
 
 // NAC
@@ -149,6 +186,8 @@ void CalibrationData::stereo_block_matching(Mat img1, Mat img2) {
     int alg = STEREO_SGBM;
     int SADWindowSize = 0, numberOfDisparities = 0;
     //float scale = 1.f;
+
+//Ptr<StereoBM> bm = StereoBM (int preset, int ndisparities=0, int SADWindowSize=21)
 
 /*
     Ptr<StereoBM> bm = createStereoBM(16,9);
